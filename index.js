@@ -1,4 +1,20 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
+const { MongoClient } = require('mongodb');
+const path = require('path'); 
+
+const uri = "mongodb+srv://cristianxp_db_user:wpZqcQKcnUl4kGk4@cluster0.mdf0qyj.mongodb.net/";
+const client = new MongoClient(uri);
+let db;
+
+async function connectDB() {
+    try {
+        await client.connect();
+        db = client.db("mvending"); // Nombre de tu DB
+        console.log("Conectado a MongoDB Atlas");
+    } catch (e) {
+        console.error("Error al conectar a MongoDB Atlas:", e);
+    }
+}
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -7,9 +23,12 @@ const createWindow = () => {
     frame: false,            // Hide the title bar and native frame
     resizable: false,        // Disable resizing
     autoHideMenuBar: true,
+    
     webPreferences: {
-            nodeIntegration: true
-        }
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
   })
 
   // win.setMenu(null);
@@ -18,8 +37,32 @@ const createWindow = () => {
 }
 
 app.whenReady().then(() => {
+  connectDB()
   createWindow()
 })
+
+// Manejar eventos IPC (Comunicación entre main y renderer)
+ipcMain.handle('get-productos', async () => {
+    try {
+        const collection = db.collection('productos');
+        const result = await collection.find().toArray();
+        return result;
+    } catch (error) {
+        console.error("Error al obtener productos:", error);
+        throw error;
+    }
+});
+
+ipcMain.handle('get-cambio', async () => {
+    try {
+        const collection = db.collection('cambio');
+        const result = await collection.find().toArray();
+        return result;
+    } catch (error) {
+        console.error("Error al obtener cambio:", error);
+        throw error;
+    }
+});
 
 
 let parentWindow;
